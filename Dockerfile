@@ -5,6 +5,11 @@ MAINTAINER tedgin@cyverse.org
 # Install PostgreSQL
 #
 
+ARG DBMS_PORT=5432
+ARG DBMS_DB=ICAT
+ARG DBMS_USER=irods
+ARG DBMS_PASSWORD=testpassword
+
 RUN yum --assumeyes install \
         https://download.postgresql.org/pub/repos/yum/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-3.noarch.rpm
 RUN yum --assumeyes install postgresql93-server
@@ -17,17 +22,23 @@ RUN su --command '/usr/pgsql-9.3/bin/initdb --auth ident \
 COPY postgresql/* /var/lib/pgsql/9.3/data/
 
 RUN /etc/init.d/postgresql-9.3 start && \
-    su --command "psql --command 'CREATE DATABASE \"ICAT\"' && \
-                  psql --command \"CREATE USER irods WITH PASSWORD 'testpassword'\" && \
-                  psql --command 'GRANT ALL PRIVILEGES ON DATABASE \"ICAT\" TO irods'" \
+    su --command "psql --command 'CREATE DATABASE \"$DBMS_DB\"' && \
+                  psql --command \"CREATE USER $DBMS_USER WITH PASSWORD '$DBMS_PASSWORD'\" && \
+                  psql --command 'GRANT ALL PRIVILEGES ON DATABASE \"$DBMS_DB\" TO $DBMS_USER'" \
        --login postgres && \
     /etc/init.d/postgresql-9.3 stop
 
-EXPOSE 5432/tcp
+EXPOSE "$DBMS_PORT"/tcp
 
 #
 # Install RabbitMQ
 #
+
+ARG AMQP_MGMT_PORT=15672
+ARG AMQP_BROKER_PORT=5672
+ARG AMQP_VHOST=/data-store
+ARG AMQP_USER=guest
+ARG AMQP_EXCHANGE=irods
 
 RUN yum --assumeyes install epel-release wget
 RUN yum --assumeyes install \
@@ -35,19 +46,24 @@ RUN yum --assumeyes install \
 
 RUN rabbitmq-plugins enable rabbitmq_management
 RUN /etc/init.d/rabbitmq-server start && \
-    wget --output-document /sbin/rabbitmqadmin http://localhost:15672/cli/rabbitmqadmin && \
+    wget --output-document /sbin/rabbitmqadmin \
+         http://localhost:"$AMQP_MGMT_PORT"/cli/rabbitmqadmin && \
     chmod +x /sbin/rabbitmqadmin && \
-    su --command 'rabbitmqctl add_vhost /qa-3/data-store && \
-                  rabbitmqctl set_permissions -p /qa-3/data-store guest ".*" ".*" ".*"' \
+    su --command "rabbitmqctl add_vhost '$AMQP_VHOST' && \
+                  rabbitmqctl set_permissions -p '$AMQP_VHOST' '$AMQP_USER' '.*' '.*' '.*'" \
        --login rabbitmq && \
-    rabbitmqadmin --vhost /qa-3/data-store declare exchange name=irods type=topic && \
+    rabbitmqadmin --vhost "$AMQP_VHOST" declare exchange name="$AMQP_EXCHANGE" type=topic && \
     /etc/init.d/rabbitmq-server stop
 
-EXPOSE 5672/tcp
+EXPOSE "$AMQP_BROKER_PORT"/tcp "$AMQP_MGMT_PORT"/tcp
 
 #
 # Install iRODS
 #
+
+ARG IRODS_ZONE_PORT=1247
+ARG IRODS_FIRST_TRANSPORT_PORT=20000
+ARG IRODS_LAST_TRANSPORT_PORT=20199
 
 RUN yum --assumeyes install sudo
 
@@ -73,7 +89,9 @@ COPY irods/var/irods_environment.json /var/lib/irods/.irods/irods_environment.js
 
 RUN chown --recursive irods:irods /etc/irods /var/lib/irods/.irods/irods_environment.json
 
-EXPOSE 1247/tcp 20000-20009/tcp 20000-20009/udp
+EXPOSE "$IRODS_ZONE_PORT"/tcp \
+       "$IRODS_FIRST_TRANSPORT_PORT"-"$IRODS_LAST_TRANSPORT_PORT"/tcp \
+       "$IRODS_FIRST_TRANSPORT_PORT"-"$IRODS_LAST_TRANSPORT_PORT"/udp
 
 #
 # Install bootstrap
