@@ -61,6 +61,8 @@ EXPOSE "$AMQP_BROKER_PORT"/tcp "$AMQP_MGMT_PORT"/tcp
 # Install iRODS
 #
 
+ARG IRODS_SYSTEM_USER=irods
+ARG IRODS_SYSTEM_GROUP=irods
 ARG IRODS_ZONE_PORT=1247
 ARG IRODS_FIRST_TRANSPORT_PORT=20000
 ARG IRODS_LAST_TRANSPORT_PORT=20199
@@ -73,8 +75,8 @@ RUN yum --assumeyes install \
 
 COPY irods/etc/service_account.config irods/etc/*.re /etc/irods/
 
-RUN adduser --system --comment 'iRODS Administrator' --home-dir /var/lib/irods irods
-RUN chown --recursive irods:irods /var/lib/irods /etc/irods
+RUN adduser --system --comment 'iRODS Administrator' --home-dir /var/lib/irods "$IRODS_SYSTEM_USER"
+RUN chown --recursive "$IRODS_SYSTEM_USER":"$IRODS_SYSTEM_GROUP" /var/lib/irods /etc/irods
 
 COPY irods/setup_irods.in .
 
@@ -87,7 +89,8 @@ RUN rm setup_irods.in
 COPY irods/etc/database_config.json irods/etc/server_config.json /etc/irods/
 COPY irods/var/irods_environment.json /var/lib/irods/.irods/irods_environment.json
 
-RUN chown --recursive irods:irods /etc/irods /var/lib/irods/.irods/irods_environment.json
+RUN chown --recursive "$IRODS_SYSTEM_USER":"$IRODS_SYSTEM_GROUP" \
+          /etc/irods /var/lib/irods/.irods/irods_environment.json
 
 EXPOSE "$IRODS_ZONE_PORT"/tcp \
        "$IRODS_FIRST_TRANSPORT_PORT"-"$IRODS_LAST_TRANSPORT_PORT"/tcp \
