@@ -7,7 +7,7 @@ TEMPORARY_zone_key
 TEMPORARY_32byte_negotiation_key
 1248
 TEMPORARY__32byte_ctrl_plane_key
-https://schemas.irods.org/configuration
+off
 rods
 rods
 yes
