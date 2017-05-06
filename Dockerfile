@@ -1,5 +1,5 @@
 FROM centos:6
-MAINTAINER tedgin@cyverse.org
+MAINTAINER Tony Edgin <tedgin@cyverse.org>
 
 #
 # Install PostgreSQL
