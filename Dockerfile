@@ -10,23 +10,28 @@ ARG DBMS_DB=ICAT
 ARG DBMS_USER=irods
 ARG DBMS_PASSWORD=testpassword
 
+ENV PGDATA /var/lib/pgsql/9.3
+
 RUN yum --assumeyes install \
-        https://download.postgresql.org/pub/repos/yum/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-3.noarch.rpm
-RUN yum --assumeyes install postgresql93-server
-RUN su --command '/usr/pgsql-9.3/bin/initdb --auth ident \
-                                            --locale en_US.UTF-8 \
+        https://download.postgresql.org/pub/repos/yum/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-3.noarch.rpm && \
+    yum --assumeyes install postgresql93-server && \
+    su --command "sed --in-place 's|^PGDATA=.*|PGDATA=\"$PGDATA\"|' /var/lib/pgsql/.bash_profile && \
+                  /usr/pgsql-9.3/bin/initdb --auth ident \
                                             --lc-collate C \
-                                            --pgdata /var/lib/pgsql/9.3/data' \
-       postgres
+                                            --locale en_US.UTF-8 \
+                                            --pgdata '$PGDATA'/data" \
+       postgres && \
+    mv "$PGDATA"/data/*.conf "$PGDATA"/
 
-COPY postgresql/* /var/lib/pgsql/9.3/data/
+COPY postgresql/* "$PGDATA"/
 
-RUN /etc/init.d/postgresql-9.3 start && \
-    su --command "psql --command 'CREATE DATABASE \"$DBMS_DB\"' && \
+RUN chown postgres:postgres "$PGDATA"/* && \
+    su --command "/usr/pgsql-9.3/bin/pg_ctl -w start && \
+                  psql --command 'CREATE DATABASE \"$DBMS_DB\"' && \
                   psql --command \"CREATE USER $DBMS_USER WITH PASSWORD '$DBMS_PASSWORD'\" && \
-                  psql --command 'GRANT ALL PRIVILEGES ON DATABASE \"$DBMS_DB\" TO $DBMS_USER'" \
-       --login postgres && \
-    /etc/init.d/postgresql-9.3 stop
+                  psql --command 'GRANT ALL PRIVILEGES ON DATABASE \"$DBMS_DB\" TO $DBMS_USER' && \
+                  /usr/pgsql-9.3/bin/pg_ctl -w stop" \
+       --login postgres
 
 EXPOSE "$DBMS_PORT"/tcp
 
@@ -80,9 +85,9 @@ RUN chown --recursive "$IRODS_SYSTEM_USER":"$IRODS_SYSTEM_GROUP" /var/lib/irods 
 
 COPY irods/setup_irods.in .
 
-RUN /etc/init.d/postgresql-9.3 start && \
+RUN su --command '/usr/pgsql-9.3/bin/pg_ctl -w start' --login postgres && \
     /var/lib/irods/packaging/setup_irods.sh < setup_irods.in && \
-    /etc/init.d/postgresql-9.3 stop
+    su --command '/usr/pgsql-9.3/bin/pg_ctl -w stop' --login postgres
 
 RUN rm setup_irods.in
 

@@ -32,5 +32,6 @@ docker build --build-arg AMQP_MGMT_PORT="$AMQP_MGMT_PORT" \
              --build-arg IRODS_FIRST_TRANSPORT_PORT="$IRODS_FIRST_TRANSPORT_PORT" \
              --build-arg IRODS_LAST_TRANSPORT_PORT="$IRODS_LAST_TRANSPORT_PORT" \
              --file "$BaseDir"/Dockerfile \
+             --tag qa-ds \
              "$BaseDir"
  

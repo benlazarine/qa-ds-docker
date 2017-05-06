@@ -1,17 +1,19 @@
 #! /bin/bash
 
-readonly PriorServices=(postgresql-9.3 rabbitmq-server)
-
-start_service() {
-  local service="$1"
-
-  eval "/etc/init.d/$service start"
+start_postgresql()
+{
+  su --command '/usr/pgsql-9.3/bin/pg_ctl -w start' --login postgres
 }
+export -f start_postgresql
 
-export -f start_service
 
-parallel --no-notice start_service ::: ${PriorServices[@]}
+start_rabbitmq()
+{
+   /etc/init.d/rabbitmq-server start
+}
+export -f start_rabbitmq
 
-start_service irods
 
+parallel --no-notice eval ::: start_postgresql start_rabbitmq
+/etc/init.d/irods start
 bash
