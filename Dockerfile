@@ -2,6 +2,13 @@ FROM centos:6
 MAINTAINER Tony Edgin <tedgin@cyverse.org>
 
 #
+# Create volume
+#
+
+RUN mkdir --parents /data/icat /data/vaults/default /logs && \
+    chmod ugo+rwx /data /logs
+
+#
 # Install PostgreSQL
 #
 
@@ -15,13 +22,14 @@ ENV PGDATA /var/lib/pgsql/9.3
 RUN yum --assumeyes install \
         https://download.postgresql.org/pub/repos/yum/9.3/redhat/rhel-6-x86_64/pgdg-centos93-9.3-3.noarch.rpm && \
     yum --assumeyes install postgresql93-server && \
+    chown postgres:postgres /data/icat && \
     su --command "sed --in-place 's|^PGDATA=.*|PGDATA=\"$PGDATA\"|' /var/lib/pgsql/.bash_profile && \
                   /usr/pgsql-9.3/bin/initdb --auth ident \
                                             --lc-collate C \
                                             --locale en_US.UTF-8 \
-                                            --pgdata '$PGDATA'/data" \
+                                            --pgdata /data/icat" \
        postgres && \
-    mv "$PGDATA"/data/*.conf "$PGDATA"/
+    mv /data/icat/*.conf "$PGDATA"/
 
 COPY postgresql/* "$PGDATA"/
 
@@ -45,12 +53,13 @@ ARG AMQP_VHOST=/data-store
 ARG AMQP_USER=guest
 ARG AMQP_EXCHANGE=irods
 
-RUN yum --assumeyes install epel-release wget
-RUN yum --assumeyes install \
-        https://www.rabbitmq.com/releases/rabbitmq-server/v3.3.1/rabbitmq-server-3.3.1-1.noarch.rpm
+ENV RABBITMQ_LOG_BASE /logs
 
-RUN rabbitmq-plugins enable rabbitmq_management
-RUN /etc/init.d/rabbitmq-server start && \
+RUN yum --assumeyes install epel-release wget && \
+    yum --assumeyes install \
+        https://www.rabbitmq.com/releases/rabbitmq-server/v3.3.1/rabbitmq-server-3.3.1-1.noarch.rpm && \
+    rabbitmq-plugins enable rabbitmq_management && \
+    /etc/init.d/rabbitmq-server start && \
     wget --output-document /sbin/rabbitmqadmin \
          http://localhost:"$AMQP_MGMT_PORT"/cli/rabbitmqadmin && \
     chmod +x /sbin/rabbitmqadmin && \
@@ -103,12 +112,17 @@ EXPOSE "$IRODS_ZONE_PORT"/tcp \
 
 #
 # Install bootstrap
-# 
+#
 
 RUN wget --directory-prefix /etc/yum.repos.d/ \
          http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo
 RUN yum --assumeyes install parallel
 
 COPY bootstrap.sh .
+
+RUN rm --force /logs/*
+
+VOLUME /data
+VOLUME /logs
 
 ENTRYPOINT ["/bootstrap.sh"]
