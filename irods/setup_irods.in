@@ -2,7 +2,7 @@ iplant
 1247
 20000
 20009
-/var/lib/irods/iRODS/Vault
+/data/vaults/default
 TEMPORARY_zone_key
 TEMPORARY_32byte_negotiation_key
 1248

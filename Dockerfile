@@ -6,7 +6,7 @@ MAINTAINER Tony Edgin <tedgin@cyverse.org>
 #
 
 RUN mkdir --parents /data/icat /data/vaults/default /logs && \
-    chmod ugo+rwx /data /logs
+    chmod --recursive a+rwx /data /logs
 
 #
 # Install PostgreSQL
@@ -81,24 +81,26 @@ ARG IRODS_ZONE_PORT=1247
 ARG IRODS_FIRST_TRANSPORT_PORT=20000
 ARG IRODS_LAST_TRANSPORT_PORT=20199
 
-RUN yum --assumeyes install sudo
-
 RUN yum --assumeyes install \
+        sudo \
         ftp://ftp.renci.org/pub/irods/releases/4.1.10/centos6/irods-icat-4.1.10-centos6-x86_64.rpm \
-        ftp://ftp.renci.org/pub/irods/releases/4.1.10/centos6/irods-database-plugin-postgres93-1.10-centos6-x86_64.rpm
+        ftp://ftp.renci.org/pub/irods/releases/4.1.10/centos6/irods-database-plugin-postgres93-1.10-centos6-x86_64.rpm && \
+    rmdir /var/lib/irods/iRODS/server/log && \
+    ln --symbolic /logs /var/lib/irods/iRODS/server/log
 
 COPY irods/etc/service_account.config irods/etc/*.re /etc/irods/
 
-RUN adduser --system --comment 'iRODS Administrator' --home-dir /var/lib/irods "$IRODS_SYSTEM_USER"
-RUN chown --recursive "$IRODS_SYSTEM_USER":"$IRODS_SYSTEM_GROUP" /var/lib/irods /etc/irods
-
+RUN adduser --system --comment 'iRODS Administrator' --home-dir /var/lib/irods \
+            "$IRODS_SYSTEM_USER" && \
+    chown --recursive "$IRODS_SYSTEM_USER":"$IRODS_SYSTEM_GROUP" \
+          /var/lib/irods /etc/irods /data/vaults
+ 
 COPY irods/setup_irods.in .
 
 RUN su --command '/usr/pgsql-9.3/bin/pg_ctl -w start' --login postgres && \
     /var/lib/irods/packaging/setup_irods.sh < setup_irods.in && \
-    su --command '/usr/pgsql-9.3/bin/pg_ctl -w stop' --login postgres
-
-RUN rm setup_irods.in
+    su --command '/usr/pgsql-9.3/bin/pg_ctl -w stop' --login postgres && \
+    rm --force setup_irods.in
 
 COPY irods/etc/database_config.json irods/etc/server_config.json /etc/irods/
 COPY irods/var/irods_environment.json /var/lib/irods/.irods/irods_environment.json
@@ -115,14 +117,12 @@ EXPOSE "$IRODS_ZONE_PORT"/tcp \
 #
 
 RUN wget --directory-prefix /etc/yum.repos.d/ \
-         http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo
-RUN yum --assumeyes install parallel
+         http://download.opensuse.org/repositories/home:/tange/CentOS_CentOS-6/home:tange.repo && \
+    yum --assumeyes install parallel && \
+    rm --force --recursive /logs/*
 
 COPY bootstrap.sh .
 
-RUN rm --force /logs/*
-
-VOLUME /data
-VOLUME /logs
+VOLUME /data /logs
 
 ENTRYPOINT ["/bootstrap.sh"]
