@@ -16,4 +16,5 @@ export -f start_rabbitmq
 
 parallel --no-notice eval ::: start_postgresql start_rabbitmq
 /etc/init.d/irods start
+su --command "/usr/bin/iadmin modresc demoResc host $(hostname)" --login irods 
 bash

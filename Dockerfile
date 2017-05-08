@@ -99,6 +99,7 @@ COPY irods/setup_irods.in .
 
 RUN su --command '/usr/pgsql-9.3/bin/pg_ctl -w start' --login postgres && \
     /var/lib/irods/packaging/setup_irods.sh < setup_irods.in && \
+    su --command 'iadmin modresc demoResc host localhost' --login irods && \
     su --command '/usr/pgsql-9.3/bin/pg_ctl -w stop' --login postgres && \
     rm --force setup_irods.in
 
