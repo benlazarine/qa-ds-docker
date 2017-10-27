@@ -97,7 +97,10 @@ RUN adduser --system --comment 'iRODS Administrator' --home-dir /var/lib/irods \
  
 COPY irods/setup_irods.in .
 
-RUN su --command '/usr/pgsql-9.3/bin/pg_ctl -w start' --login postgres && \
+RUN sed --in-place \
+        's/ODBC=`\([^`]*\)`/ODBC=`\1 | head --lines 1`/' \
+        /var/lib/irods/packaging/find_odbc_postgres.sh && \
+    su --command '/usr/pgsql-9.3/bin/pg_ctl -w start' --login postgres && \
     /var/lib/irods/packaging/setup_irods.sh < setup_irods.in && \
     su --command 'iadmin modresc demoResc host localhost' --login irods && \
     su --command '/usr/pgsql-9.3/bin/pg_ctl -w stop' --login postgres && \
